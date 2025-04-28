@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsScreen() {
   const [settings, setSettings] = useState({
@@ -39,8 +40,9 @@ export default function SettingsScreen() {
         { 
           text: "Clear", 
           style: "destructive",
-          onPress: () => {
+          onPress:async () => {
             // In a real app, this would clear the history
+            await AsyncStorage.setItem('qrHistory', JSON.stringify(''));
             Alert.alert("History Cleared", "Your scan history has been cleared.");
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }

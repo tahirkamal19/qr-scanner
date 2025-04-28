@@ -105,7 +105,7 @@ export default function HistoryScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const updatedHistory = history.filter(item => item.id !== id);
+              const updatedHistory = history?.filter(item => item.id !== id);
               setHistory(updatedHistory);
               await AsyncStorage.setItem('qrHistory', JSON.stringify(updatedHistory));
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

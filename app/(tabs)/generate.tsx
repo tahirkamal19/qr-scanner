@@ -16,6 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { captureRef } from 'react-native-view-shot';
+import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+
 
 const QR_TYPES = [
   { id: 'text', label: 'Text', icon: 'text-outline' },
@@ -65,25 +70,78 @@ export default function GenerateScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const saveQRCode = () => {
-    // In a real app, this would save the QR code to the gallery
-    Alert.alert(
-      "QR Code Saved",
-      "The QR code has been saved to your gallery.",
-      [{ text: "OK" }]
-    );
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const saveQRCode = async () => {
+    try {
+      if (!qrRef.current) {
+        Alert.alert("Error", "QR Code is not ready yet.");
+        return;
+      }
+  
+      // Request media library permissions
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert("Permission Denied", "We need access to your media library to save the QR code.");
+        return;
+      }
+  
+      // Capture the QR Code view
+      const uri = await captureRef(qrRef, {
+        format: 'png',
+        quality: 1,
+      });
+  
+      // Save the image to the gallery
+      await MediaLibrary.saveToLibraryAsync(uri);
+  
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Success", "QR Code saved to your gallery!");
+    } catch (error) {
+      console.error("Error saving QR Code:", error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Error", "Failed to save QR Code. Please try again.");
+    }
   };
+  
 
-  const shareQRCode = () => {
-    // In a real app, this would share the QR code
-    Alert.alert(
-      "Share QR Code",
-      "Sharing functionality would be implemented here.",
-      [{ text: "OK" }]
-    );
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const shareQRCode = async () => {
+    try {
+      if (!qrRef.current) {
+        Alert.alert("Error", "QR Code is not ready yet.");
+        return;
+      }
+  
+      // Capture the QR Code view
+      const uri = await captureRef(qrRef, {
+        format: 'png',
+        quality: 1,
+      });
+  
+      const fileUri = `${FileSystem.cacheDirectory}qr-code.png`;
+  
+      // Move the captured image to a file
+      await FileSystem.copyAsync({
+        from: uri,
+        to: fileUri,
+      });
+  
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert("Sharing not available", "Your device doesn't support sharing files.");
+        return;
+      }
+  
+      // Share the QR Code
+      await Sharing.shareAsync(fileUri);
+  
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      console.error("Error sharing QR Code:", error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Error", "Failed to share QR Code. Please try again.");
+    }
   };
+  
 
   const COLORS = [
     '#000000', '#4F66E5', '#E53935', '#43A047', '#FB8C00', '#8E24AA'
