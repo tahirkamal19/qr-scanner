@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const SETTINGS_KEY = 'appSettings';
+
 export default function SettingsScreen() {
   const [settings, setSettings] = useState({
     darkMode: false,
@@ -23,12 +25,29 @@ export default function SettingsScreen() {
     cameraSound: true,
   });
 
-  const toggleSetting = (key) => {
-    setSettings({
-      ...settings,
-      [key]: !settings[key],
-    });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(SETTINGS_KEY);
+        if (stored) setSettings(JSON.parse(stored));
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const toggleSetting = async (key) => {
+    const updated = { ...settings, [key]: !settings[key] };
+    setSettings(updated);
+    try {
+      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error saving setting:', error);
+    }
+    if (settings.hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   };
 
   const clearHistory = () => {
@@ -37,14 +56,19 @@ export default function SettingsScreen() {
       "Are you sure you want to clear all scan history?",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Clear", 
+        {
+          text: "Clear",
           style: "destructive",
-          onPress:async () => {
-            // In a real app, this would clear the history
-            await AsyncStorage.setItem('qrHistory', JSON.stringify(''));
-            Alert.alert("History Cleared", "Your scan history has been cleared.");
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          onPress: async () => {
+            try {
+              await AsyncStorage.setItem('qrHistory', JSON.stringify([]));
+              Alert.alert("History Cleared", "Your scan history has been cleared.");
+              if (settings.hapticFeedback) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+            } catch (error) {
+              console.error("Error clearing history:", error);
+            }
           }
         }
       ]
@@ -55,140 +79,98 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Settings</Text>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Appearance</Text>
-          
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="moon-outline" size={22} color="#333333" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Dark Mode</Text>
-            </View>
-            <Switch
-              value={settings.darkMode}
-              onValueChange={() => toggleSetting('darkMode')}
-              trackColor={{ false: '#DDDDDD', true: '#4F66E5' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </View>
-        
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Scanning</Text>
-          
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="copy-outline" size={22} color="#333333" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Auto-copy scan results</Text>
-            </View>
-            <Switch
-              value={settings.autoCopy}
-              onValueChange={() => toggleSetting('autoCopy')}
-              trackColor={{ false: '#DDDDDD', true: '#4F66E5' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-          
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="open-outline" size={22} color="#333333" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Open URLs automatically</Text>
-            </View>
-            <Switch
-              value={settings.openUrlsAutomatically}
-              onValueChange={() => toggleSetting('openUrlsAutomatically')}
-              trackColor={{ false: '#DDDDDD', true: '#4F66E5' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-          
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="volume-medium-outline" size={22} color="#333333" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Camera sound</Text>
-            </View>
-            <Switch
-              value={settings.cameraSound}
-              onValueChange={() => toggleSetting('cameraSound')}
-              trackColor={{ false: '#DDDDDD', true: '#4F66E5' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
+
+          <SettingSwitch
+            icon="copy-outline"
+            label="Auto-copy scan results"
+            value={settings.autoCopy}
+            onToggle={() => toggleSetting('autoCopy')}
+          />
+
+          {/* <SettingSwitch
+            icon="open-outline"
+            label="Open URLs automatically"
+            value={settings.openUrlsAutomatically}
+            onToggle={() => toggleSetting('openUrlsAutomatically')}
+          /> */}
+
+          {/* <SettingSwitch
+            icon="volume-medium-outline"
+            label="Camera sound"
+            value={settings.cameraSound}
+            onToggle={() => toggleSetting('cameraSound')}
+          /> */}
         </View>
-        
-        <View style={styles.section}>
+
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>Feedback</Text>
-          
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="pulse-outline" size={22} color="#333333" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Haptic feedback</Text>
-            </View>
-            <Switch
-              value={settings.hapticFeedback}
-              onValueChange={() => toggleSetting('hapticFeedback')}
-              trackColor={{ false: '#DDDDDD', true: '#4F66E5' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </View>
-        
+          <SettingSwitch
+            icon="pulse-outline"
+            label="Haptic feedback"
+            value={settings.hapticFeedback}
+            onToggle={() => toggleSetting('hapticFeedback')}
+          />
+        </View> */}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data</Text>
-          
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="time-outline" size={22} color="#333333" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Save scan history</Text>
-            </View>
-            <Switch
-              value={settings.saveHistory}
-              onValueChange={() => toggleSetting('saveHistory')}
-              trackColor={{ false: '#DDDDDD', true: '#4F66E5' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={clearHistory}
-          >
+
+          <SettingSwitch
+            icon="time-outline"
+            label="Save scan history"
+            value={settings.saveHistory}
+            onToggle={() => toggleSetting('saveHistory')}
+          />
+
+          <TouchableOpacity style={styles.actionButton} onPress={clearHistory}>
             <Ionicons name="trash-outline" size={22} color="#E53935" style={styles.actionIcon} />
             <Text style={styles.actionText}>Clear Scan History</Text>
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
-          
-          <TouchableOpacity style={styles.infoItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="information-circle-outline" size={22} color="#333333" style={styles.settingIcon} />
-              <Text style={styles.settingText}>App Version</Text>
-            </View>
-            <Text style={styles.infoValue}>1.0.0</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.infoItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="shield-checkmark-outline" size={22} color="#333333" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Privacy Policy</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#999999" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.infoItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="document-text-outline" size={22} color="#333333" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Terms of Service</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#999999" />
-          </TouchableOpacity>
-        </View>
+
+          <InfoItem icon="information-circle-outline" label="App Version" value="1.0.0" />
+          {/* <InfoItem icon="shield-checkmark-outline" label="Privacy Policy" /> */}
+                  </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const SettingSwitch = ({ icon, label, value, onToggle }) => (
+  <View style={styles.settingItem}>
+    <View style={styles.settingInfo}>
+      <Ionicons name={icon} size={22} color="#333333" style={styles.settingIcon} />
+      <Text style={styles.settingText}>{label}</Text>
+    </View>
+    <Switch
+      value={value}
+      onValueChange={onToggle}
+      trackColor={{ false: '#DDDDDD', true: '#4F66E5' }}
+      thumbColor="#FFFFFF"
+    />
+  </View>
+);
+
+const InfoItem = ({ icon, label, value }) => (
+  <TouchableOpacity style={styles.infoItem}>
+    <View style={styles.settingInfo}>
+      <Ionicons name={icon} size={22} color="#333333" style={styles.settingIcon} />
+      <Text style={styles.settingText}>{label}</Text>
+    </View>
+    {value ? (
+      <Text style={styles.infoValue}>{value}</Text>
+    ) : (
+      <Ionicons name="chevron-forward" size={20} color="#999999" />
+    )}
+  </TouchableOpacity>
+);
+
 
 const styles = StyleSheet.create({
   container: {

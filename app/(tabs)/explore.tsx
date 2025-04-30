@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -16,7 +17,7 @@ const FEATURES = [
     title: 'Batch Scanning',
     description: 'Scan multiple QR codes in succession without returning to the home screen.',
     icon: 'scan-outline',
-    comingSoon: false,
+    comingSoon: true,
   },
   {
     id: '2',
@@ -55,7 +56,7 @@ export default function ExploreScreen() {
           <View style={styles.bannerContent}>
             <Text style={styles.bannerTitle}>Premium Features</Text>
             <Text style={styles.bannerText}>Unlock advanced QR code features</Text>
-            <TouchableOpacity style={styles.bannerButton}>
+            <TouchableOpacity onPress={()=>Alert.alert("Buy Our Premium Package for 20$ to unlock amazing new features!.")} style={styles.bannerButton}>
               <Text style={styles.bannerButtonText}>Learn More</Text>
             </TouchableOpacity>
           </View>
@@ -89,9 +90,9 @@ export default function ExploreScreen() {
               style={styles.tipImage}
             />
             <View style={styles.tipContent}>
-              <Text style={styles.tipTitle}>Scan QR Codes from Images</Text>
+              <Text style={styles.tipTitle}>Copy You Scans Automatically</Text>
               <Text style={styles.tipDescription}>
-                Did you know you can scan QR codes from saved images in your gallery?
+                Did you know you can copy your scans automatically now?
               </Text>
             </View>
           </TouchableOpacity>

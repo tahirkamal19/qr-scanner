@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Clipboard from 'expo-clipboard';
 
 type HistoryItem = {
   id: string;
@@ -142,8 +143,15 @@ export default function HistoryScreen() {
           item.data,
           [
             { text: 'Copy', onPress: () => {
-                // In a real app, you would use Clipboard.setString(item.data)
-                Alert.alert('Copied', 'Content copied to clipboard');
+                 Clipboard.setStringAsync(item.data)
+                       .then(() => {
+                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                         Alert.alert('Copied to clipboard', 'The text has been copied to your clipboard');
+                       })
+                       .catch((error) => {
+                         console.error('Clipboard error:', error);
+                         Alert.alert('Error', 'Failed to copy text to clipboard');
+                       });
               }
             },
             { text: 'Close' }
@@ -155,8 +163,8 @@ export default function HistoryScreen() {
   const filteredHistory = activeFilter === 'all' 
     ? history 
     : activeFilter === 'favorites' 
-      ? history.filter(item => item.isFavorite)
-      : history.filter(item => item.type === activeFilter);
+      ? history?.filter(item => item.isFavorite)
+      : history?.filter(item => item.type === activeFilter);
 
   const renderItem = ({ item }: { item: HistoryItem }) => (
     <TouchableOpacity 
@@ -304,30 +312,40 @@ export default function HistoryScreen() {
       </View>
       
       {filteredHistory.length > 0 ? (
-        <FlatList
-          data={filteredHistory}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#4F66E5']}
-              tintColor="#4F66E5"
-            />
-          }
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="time-outline" size={80} color="#CCCCCC" />
-          <Text style={styles.emptyText}>No scan history found</Text>
-          <Text style={styles.emptySubtext}>
-            Scanned QR codes will appear here
-          </Text>
-        </View>
-      )}
+  <FlatList
+    data={filteredHistory}
+    renderItem={renderItem}
+    keyExtractor={item => item.id}
+    contentContainerStyle={styles.listContent}
+    showsVerticalScrollIndicator={false}
+    refreshControl={
+      <RefreshControl
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        colors={['#4F66E5']}
+        tintColor="#4F66E5"
+      />
+    }
+  />
+) : (
+  <ScrollView
+    contentContainerStyle={styles.emptyContainer}
+    refreshControl={
+      <RefreshControl
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        colors={['#4F66E5']}
+        tintColor="#4F66E5"
+      />
+    }
+  >
+    <Ionicons name="time-outline" size={80} color="#CCCCCC" />
+    <Text style={styles.emptyText}>No scan history found</Text>
+    <Text style={styles.emptySubtext}>
+      Scanned QR codes will appear here
+    </Text>
+  </ScrollView>
+)}
     </SafeAreaView>
   );
 }

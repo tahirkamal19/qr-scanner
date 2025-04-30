@@ -1,13 +1,13 @@
 "use client";
 import React, { useEffect, useRef } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  TouchableOpacity, 
-  View, 
-  Image, 
-  Animated, 
-  Dimensions, 
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Image,
+  Animated,
+  Dimensions,
   StatusBar,
   SafeAreaView
 } from 'react-native';
@@ -69,34 +69,34 @@ export default function Index() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={['#4F66E5', '#6179F5', '#7C8FF8']}
+        colors={['#1E1B4B', '#2E236C', '#3C2F8A']}
         style={styles.container}
       >
-        <Animated.View 
+        <Animated.View
           style={[
             styles.content,
             { opacity: fadeAnim }
           ]}
         >
-          <Animated.View 
+          <Animated.View
             style={[
               styles.imageContainer,
               { transform: [{ scale: scaleAnim }] }
             ]}
           >
-            <Image 
-              source={require('../assets/images/qr-code.png')} 
-              style={styles.image} 
+            <Image
+              source={require('../assets/images/qr-code.png')}
+              style={styles.image}
               resizeMode="contain"
             />
           </Animated.View>
-          
+
           <View style={styles.textContainer}>
             <Text style={styles.title}>QR Code Scanner</Text>
             <Text style={styles.subtitle}>Scan and process QR codes instantly</Text>
           </View>
-          
-          <Animated.View 
+
+          <Animated.View
             style={[
               styles.buttonContainer,
               { transform: [{ scale: buttonAnim }] }
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   imageContainer: {
-    backgroundColor: 'white',
+    backgroundColor: '#4f46e5',
     borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },

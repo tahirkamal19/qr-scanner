@@ -1,114 +1,12 @@
-// import React, { useState } from 'react';
-// import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-// import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-// import * as Haptics from 'expo-haptics';
-// import { Ionicons } from '@expo/vector-icons';
-
-// export default function ScanScreen() {
-//   const [permission, requestPermission] = useCameraPermissions();
-//   const [facing, setFacing] = useState<CameraType>('back');
-//   const [scanned, setScanned] = useState(false);
-
-//   if (!permission) return <View />;
-//   if (!permission.granted) {
-//     return (
-//       <View style={styles.container}>
-//         <Text style={styles.message}>We need your permission to use the camera</Text>
-//         <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-//           <Text style={styles.permissionText}>Grant Permission</Text>
-//         </TouchableOpacity>
-//       </View>
-//     );
-//   }
-
-//   const handleBarCodeScanned = ({ data }: { data: string }) => {
-//     if (scanned) return;
-//     setScanned(true);
-//     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-//     Alert.alert("QR Code Scanned", data, [
-//       {
-//         text: "OK",
-//         onPress: () => setScanned(false)
-//       }
-//     ]);
-//   };
-
-//   const toggleCameraFacing = () => {
-//     setFacing((current) => (current === 'back' ? 'front' : 'back'));
-//     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-//   };
-
-//   return (
-//     <View style={styles.container}>
-//       <CameraView
-//         style={styles.camera}
-//         facing={facing}
-//         onBarcodeScanned={handleBarCodeScanned}
-//         barcodeScannerSettings={{
-//           barcodeTypes: ['qr'],
-//         }}
-//       >
-//         <View style={styles.controls}>
-//           <TouchableOpacity style={styles.flipButton} onPress={toggleCameraFacing}>
-//             <Ionicons name="camera-reverse" size={28} color="white" />
-//             <Text style={styles.flipText}>Flip</Text>
-//           </TouchableOpacity>
-//         </View>
-//       </CameraView>
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//   },
-//   message: {
-//     fontSize: 16,
-//     textAlign: 'center',
-//     marginTop: 20,
-//   },
-//   permissionButton: {
-//     backgroundColor: '#007AFF',
-//     padding: 12,
-//     borderRadius: 8,
-//     alignSelf: 'center',
-//     marginTop: 16,
-//   },
-//   permissionText: {
-//     color: 'white',
-//     fontWeight: 'bold',
-//   },
-//   camera: {
-//     flex: 1,
-//     justifyContent: 'flex-end',
-//   },
-//   controls: {
-//     position: 'absolute',
-//     bottom: 40,
-//     alignSelf: 'center',
-//     alignItems: 'center',
-//   },
-//   flipButton: {
-//     alignItems: 'center',
-//   },
-//   flipText: {
-//     color: 'white',
-//     marginTop: 4,
-//   },
-// });
-
-
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Alert, 
-  Animated, 
-  Dimensions, 
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Animated,
+  Dimensions,
   SafeAreaView,
   Modal,
   Linking,
@@ -120,6 +18,10 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarCodeScanner } from 'expo-barcode-scanner';
+import * as Clipboard from 'expo-clipboard';
+import { useFocusEffect } from '@react-navigation/native';
+
+
 
 const { width } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.7;
@@ -131,6 +33,9 @@ export default function ScanScreen() {
   const [scanned, setScanned] = useState(false);
   const [result, setResult] = useState<{ type: string; data: string } | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [autoCopy, setAutoCopy] = useState(false);
+  const [autoOpenURLs, setAutoOpenUrls] = useState(false);
+  const [saveHistory, setSaveHistory] = useState(false);
   const scanLineAnim = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
 
@@ -164,6 +69,43 @@ export default function ScanScreen() {
     };
   }, [scanned]);
 
+  useFocusEffect(
+    useCallback(() => {
+      const loadSettings = async () => {
+        try {
+          const settingsString = await AsyncStorage.getItem('appSettings');
+          const parsed = settingsString ? JSON.parse(settingsString) : {};
+          setAutoCopy(parsed.autoCopy ?? false);
+          setAutoOpenUrls(parsed.openUrlsAutomatically ?? false);
+          setSaveHistory(parsed.saveHistory ?? false);
+          console.log('Loaded settings (on focus):', parsed);
+        } catch (error) {
+          console.error('Failed to load settings:', error);
+        }
+      };
+
+      loadSettings();
+    }, [])
+  );
+
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settingsString = await AsyncStorage.getItem('appSettings');
+        const parsed = settingsString ? JSON.parse(settingsString) : {};
+        setAutoCopy(parsed.autoCopy ?? false);
+        setAutoOpenUrls(parsed.openUrlsAutomatically ?? false);
+        setSaveHistory(parsed.saveHistory ?? false);
+        console.log('Loaded settings:', parsed);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
   if (!permission) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -192,7 +134,7 @@ export default function ScanScreen() {
       // Get existing history
       const historyString = await AsyncStorage.getItem('qrHistory');
       const history = historyString ? JSON.parse(historyString) : [];
-      
+
       // Add new scan to history
       const newScan = {
         id: Date.now().toString(),
@@ -201,10 +143,10 @@ export default function ScanScreen() {
         date: new Date().toISOString(),
         isFavorite: false,
       };
-      
+
       // Add to beginning of array
       history.unshift(newScan);
-      
+
       // Save updated history
       await AsyncStorage.setItem('qrHistory', JSON.stringify(history));
     } catch (error) {
@@ -223,24 +165,32 @@ export default function ScanScreen() {
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
-    
-    // Provide haptic feedback
+
+    // Haptic feedback
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
-    // Detect QR type
+
     const type = detectQRType(data);
-    
+
     // Save to history
-    saveToHistory(data, type);
-    
-    // Set result and show modal
+    if (saveHistory) {
+      saveToHistory(data, type);
+    }
+
+    // Auto-copy if enabled
+    if (autoCopy) {
+      Clipboard.setStringAsync(data).catch((err) =>
+        console.error('Auto-copy failed:', err)
+      );
+    }
+
+    // Show result modal
     setResult({ type, data });
     setShowResult(true);
   };
 
   const handleAction = () => {
     if (!result) return;
-    
+
     switch (result.type) {
       case 'url':
         Linking.openURL(result.data).catch(() => {
@@ -258,8 +208,15 @@ export default function ScanScreen() {
         });
         break;
       default:
-        // Copy to clipboard functionality would go here
-        Alert.alert('Copied to clipboard', 'The text has been copied to your clipboard');
+        Clipboard.setStringAsync(result.data)
+          .then(() => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert('Copied to clipboard', 'The text has been copied to your clipboard');
+          })
+          .catch((error) => {
+            console.error('Clipboard error:', error);
+            Alert.alert('Error', 'Failed to copy text to clipboard');
+          });
     }
   };
 
@@ -280,7 +237,7 @@ export default function ScanScreen() {
 
   const getActionText = () => {
     if (!result) return 'Copy';
-    
+
     switch (result.type) {
       case 'url':
         return 'Open URL';
@@ -295,7 +252,7 @@ export default function ScanScreen() {
 
   const getTypeIcon = () => {
     if (!result) return 'document-text-outline';
-    
+
     switch (result.type) {
       case 'url':
         return 'globe-outline';
@@ -327,16 +284,16 @@ export default function ScanScreen() {
             <Text style={styles.headerTitle}>Scan QR Code</Text>
             <Text style={styles.headerSubtitle}>Position QR code in the frame</Text>
           </View>
-          
+
           {/* Scan Area */}
           <View style={styles.scanAreaContainer}>
             <View style={styles.scanArea}>
-              <Animated.View 
+              <Animated.View
                 style={[
                   styles.scanLine,
-                  { 
+                  {
                     transform: [
-                      { 
+                      {
                         translateY: scanLineAnim.interpolate({
                           inputRange: [0, 1],
                           outputRange: [0, SCAN_AREA_SIZE - 2]
@@ -344,9 +301,9 @@ export default function ScanScreen() {
                       }
                     ]
                   }
-                ]} 
+                ]}
               />
-              
+
               {/* Corner markers */}
               <View style={[styles.cornerMarker, styles.cornerTL]} />
               <View style={[styles.cornerMarker, styles.cornerTR]} />
@@ -354,7 +311,7 @@ export default function ScanScreen() {
               <View style={[styles.cornerMarker, styles.cornerBR]} />
             </View>
           </View>
-          
+
           {/* Controls */}
           <View style={[styles.controls, { marginBottom: insets.bottom + 20 }]}>
             {/* <TouchableOpacity style={styles.controlButton} onPress={toggleFlash}>
@@ -365,7 +322,7 @@ export default function ScanScreen() {
               />
               <Text style={styles.controlText}>Flash</Text>
             </TouchableOpacity> */}
-            
+
             <TouchableOpacity style={styles.controlButton} onPress={toggleCameraFacing}>
               <Ionicons name="camera-reverse" size={28} color="white" />
               <Text style={styles.controlText}>Flip</Text>
@@ -373,7 +330,7 @@ export default function ScanScreen() {
           </View>
         </SafeAreaView>
       </CameraView>
-      
+
       {/* Result Modal */}
       <Modal
         visible={showResult}
@@ -387,7 +344,7 @@ export default function ScanScreen() {
               <Ionicons name={getTypeIcon()} size={32} color="#4F66E5" />
               <Text style={styles.modalTitle}>QR Code Scanned</Text>
             </View>
-            
+
             <View style={styles.resultContainer}>
               <Text style={styles.resultTypeLabel}>
                 {result?.type.toUpperCase()}
@@ -396,24 +353,24 @@ export default function ScanScreen() {
                 {result?.data}
               </Text>
             </View>
-            
+
             <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.secondaryButton]} 
+              <TouchableOpacity
+                style={[styles.modalButton, styles.secondaryButton]}
                 onPress={closeResult}
               >
                 <Text style={styles.secondaryButtonText}>Scan Again</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.primaryButton]} 
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.primaryButton]}
                 onPress={handleAction}
               >
-                <Ionicons 
-                  name={result?.type === 'url' ? 'open-outline' : 'copy-outline'} 
-                  size={20} 
-                  color="white" 
-                  style={styles.buttonIcon} 
+                <Ionicons
+                  name={result?.type === 'url' ? 'open-outline' : 'copy-outline'}
+                  size={20}
+                  color="white"
+                  style={styles.buttonIcon}
                 />
                 <Text style={styles.primaryButtonText}>{getActionText()}</Text>
               </TouchableOpacity>
